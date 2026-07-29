@@ -3,6 +3,7 @@ import { z } from "zod";
 import { withCacheHeaders } from "@/server/cache/strategy";
 import { runTokenScan } from "@/server/scan/tokenScan";
 import { checkRateLimit } from "@/server/security/rateLimit";
+import { commonErrorCodes, jsonError } from "@/server/api/errors";
 
 const bodySchema = z.object({
   query: z.string().min(1).max(260),
@@ -21,7 +22,12 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    // The `error` field is kept for existing clients; `code`/`message`/`retryable`/
+    // `requestId` are the stable fields new clients should read.
+    return jsonError(
+      { code: commonErrorCodes.validationError, message: "Request validation failed.", status: 400, details: parsed.error.flatten() },
+      { legacy: { error: parsed.error.flatten() } },
+    );
   }
 
   return withCacheHeaders(NextResponse.json(await runTokenScan(parsed.data.query, parsed.data.chain, parsed.data.walletAddress)), "scan");

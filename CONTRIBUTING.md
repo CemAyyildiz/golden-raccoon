@@ -44,3 +44,19 @@ RUSTC="$(rustup which rustc)" stellar contract build --manifest-path soroban/Car
 ```
 
 Never commit a Stellar secret key, signed XDR, provider credential, or production wallet seed. User transactions must be signed only by the connected wallet.
+
+## API contracts
+
+Every route under `frontend/src/app/api/**` is documented as OpenAPI 3.1 in
+`docs/openapi/v1/openapi.json`. If you add, remove, or change a route's
+request/response shape, update the spec and `docs/openapi/ROUTE_COVERAGE.md`
+in the same change, then run:
+
+```sh
+npm run test:openapi
+```
+
+This checks that every implemented route/method is documented (and vice
+versa) and validates spec/error-helper conformance. It also runs as part of
+`npm run quality:gate`. See `docs/openapi/COMPATIBILITY.md` for the
+versioning and breaking-change policy.
