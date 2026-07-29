@@ -44,3 +44,14 @@ RUSTC="$(rustup which rustc)" stellar contract build --manifest-path soroban/Car
 ```
 
 Never commit a Stellar secret key, signed XDR, provider credential, or production wallet seed. User transactions must be signed only by the connected wallet.
+
+## Performance budgets
+
+Golden Raccoon enforces Web Vitals, bundle size, and API latency budgets —
+see [`docs/PERFORMANCE_BUDGETS.md`](docs/PERFORMANCE_BUDGETS.md). Run
+`npm run test:perf` locally (part of `npm run quality:gate`) after a
+production build to check bundle sizes; without a build it still validates
+`docs/performance/budgets.json`. If your change is expected to move a budget,
+update `docs/performance/budgets.json` and the matching row in
+`docs/PERFORMANCE_BUDGETS.md` in the same PR, with measured evidence, per the
+approval process documented there.
