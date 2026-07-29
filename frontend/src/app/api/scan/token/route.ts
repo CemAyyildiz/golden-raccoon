@@ -3,7 +3,7 @@ import { z } from "zod";
 import { withCacheHeaders } from "@/server/cache/strategy";
 import { runTokenScan } from "@/server/scan/tokenScan";
 import { checkRateLimit } from "@/server/security/rateLimit";
-import { commonErrorCodes, jsonError } from "@/server/api/errors";
+import { buildServerTimingHeader, createPhaseTimer, recordApiTiming } from "@/server/observability/timing";
 
 const bodySchema = z.object({
   query: z.string().min(1).max(260),
@@ -11,7 +11,10 @@ const bodySchema = z.object({
   walletAddress: z.string().min(1).max(80).optional(),
 });
 
+const API_TIMING_ROUTE = "scan:token";
+
 export async function POST(request: Request) {
+  const requestStartedAt = performance.now();
   const rateLimited = checkRateLimit(request, { namespace: "scan:token", limit: 25, windowMs: 60_000 });
 
   if (rateLimited) {
@@ -22,13 +25,17 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(body);
 
   if (!parsed.success) {
-    // The `error` field is kept for existing clients; `code`/`message`/`retryable`/
-    // `requestId` are the stable fields new clients should read.
-    return jsonError(
-      { code: commonErrorCodes.validationError, message: "Request validation failed.", status: 400, details: parsed.error.flatten() },
-      { legacy: { error: parsed.error.flatten() } },
-    );
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  return withCacheHeaders(NextResponse.json(await runTokenScan(parsed.data.query, parsed.data.chain, parsed.data.walletAddress)), "scan");
+  const timer = createPhaseTimer();
+  const result = await runTokenScan(parsed.data.query, parsed.data.chain, parsed.data.walletAddress, timer);
+  const timing = timer.finish();
+
+  recordApiTiming(API_TIMING_ROUTE, performance.now() - requestStartedAt);
+
+  const response = withCacheHeaders(NextResponse.json({ ...result, timing }), "scan");
+  response.headers.set("Server-Timing", buildServerTimingHeader(timing));
+
+  return response;
 }
