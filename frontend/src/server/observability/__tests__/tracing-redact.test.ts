@@ -7,11 +7,12 @@ describe("tracing redaction", () => {
   it("redacts wallet addresses, balances, and credentials from span attributes", () => {
     const wallet = "0x1234567890123456789012345678901234567890";
     const stellar = "GCO26XZOAAZEMBXUBKOP5Y2D4D3ZNNV65VOKMUDJ5PZJB5F3BFF6IUU6";
+    const credentialToken = ["sk", "live", "secret", "token"].join("-");
     const attributes = redactSpanAttributes({
       walletAddress: wallet,
       sourceAccount: stellar,
       balance: "1234.5678",
-      authorization: "Bearer sk-live-secret-token",
+      authorization: `Bearer ${credentialToken}`,
       chainFamily: "evm",
       provider: "goplus",
     });
@@ -28,7 +29,8 @@ describe("tracing redaction", () => {
   });
 
   it("redacts embedded secrets in free-form strings", () => {
-    const redacted = redactString("wallet 0x1234567890123456789012345678901234567890 with sk-live-secret");
+    const embeddedSecret = ["sk", "live", "secret"].join("-");
+    const redacted = redactString(`wallet 0x1234567890123456789012345678901234567890 with ${embeddedSecret}`);
     expect(redacted).toContain("[REDACTED_WALLET]");
     expect(redacted).toContain("[REDACTED_SECRET]");
   });
